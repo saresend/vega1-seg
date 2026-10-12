@@ -1,0 +1,6 @@
+# Built by video-system1/scripts/build-seg-web.py (published on the gh-pages branch)
+/pkg
+/models
+/samples
+/stats.json
+/card.png

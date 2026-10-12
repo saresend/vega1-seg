@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vega1-seg</title>
+  <meta name="description" content="Ask where something is in a video. Vega1-seg finds it and makes a mask, on your device. Nothing is uploaded.">
+  <meta property="og:title" content="Vega1-seg: where is the dog? Video masks, on your device">
+  <meta property="og:description" content="Type what to find. The model makes a mask of it on each frame, in your browser.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="card.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Vega1-seg: where is the dog? Video masks, on your device">
+  <meta name="twitter:description" content="Type what to find. The model makes a mask of it on each frame, in your browser.">
+  <meta name="twitter:image" content="card.png">
+  <meta name="theme-color" content="#242F40">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23242F40'/%3E%3Crect x='7' y='9' width='18' height='14' fill='none' stroke='%23CCA43B' stroke-width='2.5' stroke-dasharray='4 3'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="seg.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>Vega1-seg</h1>
+      <span class="tag-line">where is it? a mask for each frame, on your device</span>
+    </div>
+    <span id="status" class="status" data-state="busy" role="status" aria-live="polite"><i></i><span id="status-text">loads…</span></span>
+  </header>
+
+  <main class="layout">
+    <section class="stage-col" aria-label="Video">
+      <div class="stage" id="stage">
+        <video id="video" muted playsinline loop autoplay></video>
+        <canvas id="overlay" aria-hidden="true"></canvas>
+        <div class="drop" id="drop" hidden>
+          <strong>put a video here</strong>
+          <span>MP4, WebM or MOV. The video stays on this device.</span>
+          <button class="btn" id="browse" type="button">select a video</button>
+        </div>
+        <div class="stage-bar">
+          <div class="modes" role="group" aria-label="View">
+            <button data-mode="overlay" aria-pressed="true">overlay</button>
+            <button data-mode="box" aria-pressed="false">box</button>
+            <button data-mode="matte" aria-pressed="false">matte</button>
+            <button data-mode="cutout" aria-pressed="false">cutout</button>
+          </div>
+          <button class="icon-btn" id="play" type="button" aria-label="Pause">❚❚</button>
+        </div>
+        <div class="working" id="working" hidden><span id="working-text"></span><i id="working-bar"></i></div>
+      </div>
+      <div class="timeline" id="timeline" aria-label="Where the object is, over time"><div class="cells" id="cells"></div><b id="playhead"></b></div>
+      <div class="meta"><span id="clip-name"></span><span id="clip-credit"></span></div>
+    </section>
+
+    <section class="side-col" aria-label="Query">
+      <form class="ask" id="ask" autocomplete="off">
+        <label for="query">where is</label>
+        <input id="query" placeholder="the dog" maxlength="120" enterkeyhint="search">
+        <button id="find" type="submit">find</button>
+      </form>
+      <div class="chips" id="chips"></div>
+      <div class="answer" id="answer" aria-live="polite"><span class="muted">Select a sample or put a video here. Then write what to find.</span></div>
+      <div class="text-status" id="text-status"></div>
+      <div class="layers" id="layers-card" hidden>
+        <div class="card-head"><b>masks</b></div>
+        <span class="hint">Click an object in the video to highlight or un-highlight it.</span>
+        <ul id="layers"></ul>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><b>samples</b><button class="link" id="yours" type="button">your video ↑</button></div>
+        <div class="samples" id="samples"></div>
+        <input type="file" id="file" accept="video/*" hidden>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><b>export</b><label class="fps">frames each second
+          <select id="fps"><option>5</option><option selected>10</option><option>15</option><option>30</option></select></label></div>
+        <div class="exports">
+          <button class="btn ghost" id="exp-matte" type="button" disabled>matte video <small>.webm</small></button>
+          <button class="btn ghost" id="exp-boxes" type="button" disabled>boxes <small>.json</small></button>
+          <button class="btn ghost" id="exp-frame" type="button" disabled>this frame <small>.png</small></button>
+        </div>
+        <p class="note">The export contains only the highlighted masks and objects. The matte is white where they are and
+          black at all other locations: use it as a track matte in a video editor. The export examines every frame, so
+          it takes more time than the preview.</p>
+      </div>
+    </section>
+  </main>
+
+  <section class="about">
+    <div class="about-grid">
+      <div>
+        <h2><small>01</small>what is this</h2>
+        <p><strong>Vega1-seg finds an object in a video and makes a mask of it.</strong> You write what to find, for
+          example "the dog". The model marks the pixels of the dog on each frame.</p>
+        <p>The model operates fully on your device, in this browser tab. It does not send the video or your words to a
+          server. It operates on a laptop or on a phone.</p>
+        <p>Use the mask to edit the video: to put the object in front of a new background, to blur it, or to follow it
+          with a box.</p>
+      </div>
+      <div>
+        <h2><small>02</small>how it works</h2>
+        <pre class="ascii" aria-hidden="true">frame ──&gt; <b>6 tiles</b> ──&gt; <b>image encoder</b> ──&gt; features ─┐
+                                                       ├─&gt; <b>mask decoder</b> ──&gt; <u>mask</u>
+"the dog" ─────────────&gt; <b>text encoder</b> ──&gt; query ────┘</pre>
+        <ul class="how">
+          <li><b>tiles</b> The model divides each frame into 6 square tiles. Small objects stay large enough to see.</li>
+          <li><b>encoder</b> The MobileCLIP-S0 image encoder (11 million parameters) examines each tile one time. The
+            model keeps the result, so a new question does not repeat this step.</li>
+          <li><b>objects</b> The model divides each mask into separate objects and follows each object from frame to frame.
+            Click an object to remove it from the mask, or to put it back.</li>
+          <li><b>decoder</b> A small decoder (0.7 million parameters) compares the tile with your words. It makes a mask
+            of 64 × 64 points for each tile and gives the probability that the object is in the tile. The model joins
+            the tiles into one mask for the frame.</li>
+          <li><b>training</b> We trained the decoder on 95,000 questions about objects in 12,500 COCO images, with masks
+            that people drew.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="stats" id="stats">
+      <div class="stat"><b id="stat-speed">–</b><span id="stat-speed-label">for each new question, after the model examines the video</span></div>
+      <div class="stat"><b id="stat-iou">–</b><span>average overlap with masks that people drew (test images)</span></div>
+      <div class="stat"><b id="stat-absent">–</b><span>correct "not found" answers when the object is not in the image</span></div>
+      <div class="stat"><b>0 bytes</b><span>sent to a server: all work occurs on your device</span></div>
+    </div>
+    <h2><small>03</small>limits</h2>
+    <ul class="how limits">
+      <li>The mask is not exact at the edges. It is good for a box, a blur or a rough cut-out. It is not sufficient
+        for exact rotoscoping.</li>
+      <li>The model knows best the 80 types of objects in COCO (people, animals, vehicles, furniture, food and more).
+        For other words, the result can be less accurate.</li>
+      <li>The preview examines 16 frames. Between them, the mask moves smoothly but it does not follow fast motion.
+        The export examines every frame.</li>
+      <li>The model finds all objects of the type that you write. It cannot yet select one object from a group
+        ("the dog on the left").</li>
+    </ul>
+  </section>
+
+  <footer>
+    <span>MobileCLIP-S0 image and text encoders and a trained mask decoder · Rust and WebAssembly</span>
+    <span id="credits">Sample videos: OpenCV · Wikimedia Commons</span>
+  </footer>
+</div>
+<script type="module" src="app.js"></script>
+</body>
+</html>
