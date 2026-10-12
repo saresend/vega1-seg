@@ -7,6 +7,8 @@ every frame, computed entirely in the browser. Nothing is uploaded.
 - Typed queries load the image encoder, mask decoder and text encoder once
   (cached by the browser), examine 16 keyframes, then answer each new query
   with the small decoder only.
+- Vega1 (the yes/no model) checks each frame for the object and the mask shows
+  only where it agrees, which removes most masks of objects that are not there.
 - Every query is a mask layer you can highlight or hide; each mask splits into
   objects that a click on the video highlights or un-highlights, followed from
   frame to frame.
