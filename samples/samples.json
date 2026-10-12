@@ -1,0 +1,47 @@
+[
+  {
+    "title": "street",
+    "file": "street.mp4",
+    "strip": "street.frames.jpg",
+    "strip_frames": 16,
+    "credit": "OpenCV sample video (vtest.avi) with subtitles that we added",
+    "credit_short": "OpenCV",
+    "seg": "street-seg.json",
+    "masks": "street-seg.masks.u8",
+    "queries": [
+      "the people",
+      "the car",
+      "the van",
+      "the dog"
+    ]
+  },
+  {
+    "title": "cat",
+    "file": "cat-play.mp4",
+    "strip": "cat-play.frames.jpg",
+    "strip_frames": 16,
+    "credit": "NairobiPapel(Kamaa) · CC BY-SA 4.0 · Wikimedia Commons",
+    "credit_short": "Wikimedia Commons",
+    "source": "https://commons.wikimedia.org/wiki/File:Cat_Play_03.webm",
+    "seg": "cat-play-seg.json",
+    "masks": "cat-play-seg.masks.u8",
+    "queries": [
+      "the cat",
+      "the person"
+    ]
+  },
+  {
+    "title": "fractal zoom",
+    "file": "fractal.mp4",
+    "strip": "fractal.frames.jpg",
+    "strip_frames": 16,
+    "credit": "Computer graphics from the ffmpeg mandelbrot source",
+    "credit_short": "Computer",
+    "seg": "fractal-seg.json",
+    "masks": "fractal-seg.masks.u8",
+    "queries": [
+      "the person",
+      "the dog"
+    ]
+  }
+]
