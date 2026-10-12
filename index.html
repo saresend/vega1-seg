@@ -102,19 +102,23 @@
       <div>
         <h2><small>02</small>how it works</h2>
         <pre class="ascii" aria-hidden="true">frame ──&gt; <b>6 tiles</b> ──&gt; <b>image encoder</b> ──&gt; features ─┐
-                                                       ├─&gt; <b>mask decoder</b> ──&gt; <u>mask</u>
-"the dog" ─────────────&gt; <b>text encoder</b> ──&gt; query ────┘</pre>
+                                                  ├─&gt; <b>mask decoder</b> ──&gt; <u>mask</u>
+&quot;the dog&quot; ──────────&gt; <b>text encoder</b> ──&gt; query ─────┤         ▲
+                                                  └─&gt; <b>Vega1</b>: found? ┘</pre>
         <ul class="how">
           <li><b>tiles</b> The model divides each frame into 6 square tiles. Small objects stay large enough to see.</li>
           <li><b>encoder</b> The MobileCLIP-S0 image encoder (11 million parameters) examines each tile one time. The
             model keeps the result, so a new question does not repeat this step.</li>
+          <li><b>found?</b> Vega1, our yes/no model, examines the full frame and its tiles and decides if the object is
+            in the frame. The mask shows only when Vega1 agrees. This removes most masks of objects that are not there.</li>
           <li><b>objects</b> The model divides each mask into separate objects and follows each object from frame to frame.
             Click an object to remove it from the mask, or to put it back.</li>
           <li><b>decoder</b> A small decoder (0.7 million parameters) compares the tile with your words. It makes a mask
             of 64 × 64 points for each tile and gives the probability that the object is in the tile. The model joins
             the tiles into one mask for the frame.</li>
-          <li><b>training</b> We trained the decoder on 95,000 questions about objects in 12,500 COCO images, with masks
-            that people drew.</li>
+          <li><b>training</b> We trained the decoder on 100,000 questions about objects in 12,500 COCO images, with masks
+            that people drew. The questions use many words for each object ("dog", "puppy") and words for groups
+            ("animal", "vehicle"), so the decoder follows the meaning of your words.</li>
         </ul>
       </div>
     </div>
@@ -129,9 +133,11 @@
       <li>The mask is not exact at the edges. It is good for a box, a blur or a rough cut-out. It is not sufficient
         for exact rotoscoping.</li>
       <li>The model knows best the 80 types of objects in COCO (people, animals, vehicles, furniture, food and more).
-        For other words, the result can be less accurate.</li>
+        For types of objects that it did not see in training, the masks are less accurate (23% overlap, against 54%).</li>
       <li>The preview examines 16 frames. Between them, the mask moves smoothly but it does not follow fast motion.
         The export examines every frame.</li>
+      <li>Sometimes the model finds an object that is not there, for example a dog in a video of a cat. Click the
+        object to remove it from the mask.</li>
       <li>The model finds all objects of the type that you write. It cannot yet select one object from a group
         ("the dog on the left").</li>
     </ul>

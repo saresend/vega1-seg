@@ -48,7 +48,7 @@ function loadModel() {
   segLoading ??= (async () => {
     status('busy', 'the model loads (25 MB)…');
     const t0 = performance.now();
-    seg = await Vega1Seg.load();
+    seg = await Vega1Seg.load({ aVideo });
     seg.addTexts(presetTexts);
     status('ready', `ready (${ms(performance.now() - t0)})`);
     return seg;
@@ -70,6 +70,7 @@ function wantText() {
 
 // Shipped text embeddings for the example queries (samples/texts.*).
 let presetTexts = [];
+let aVideo = null;
 async function loadPresetTexts() {
   const [keys, data] = await Promise.all([
     fetch('samples/texts.json').then((r) => (r.ok ? r.json() : null)),
@@ -78,7 +79,9 @@ async function loadPresetTexts() {
   if (!keys || !data) return;
   const all = new Float32Array(data);
   // embed-texts keys are [context, focus] pairs; the query is the focus.
-  presetTexts = keys.map(([, q], i) => [q, all.slice(i * 513, i * 513 + 512)]).filter(([q]) => q !== 'a video');
+  presetTexts = keys.map(([, q], i) => [q, all.slice(i * 513, i * 513 + 512)]);
+  aVideo = presetTexts.find(([q]) => q === 'a video')?.[1] ?? null; // for vega1's presence gate
+  presetTexts = presetTexts.filter(([q]) => q !== 'a video');
 }
 
 // ---------------------------------------------------------------- clips

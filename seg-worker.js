@@ -7,7 +7,7 @@ import init, { Segmenter, TextEmbedder } from './pkg/vs1_wasm.js';
 
 const CACHE = 'vega1-seg-models-v1';
 const FILES = { vision: 'models/vision_fp16w.onnx', decoder: 'models/seg.onnx', text: 'models/text_fp16w.onnx',
-  tokenizer: 'models/tokenizer.json' };
+  tokenizer: 'models/tokenizer.json', gate: 'models/head.safetensors' };
 
 let seg = null;
 let text = null;
@@ -31,12 +31,14 @@ async function fetchBytes(url) {
 }
 
 const handlers = {
-  async init({ baseUrl }) {
+  // `aVideo`: the text embedding of "a video", for vega1's presence gate.
+  async init({ baseUrl, aVideo }) {
     const t0 = performance.now();
     await init();
     self.baseUrl = baseUrl;
-    const [vision, decoder] = await Promise.all([FILES.vision, FILES.decoder].map((f) => fetchBytes(new URL(f, baseUrl).href)));
+    const [vision, decoder, gate] = await Promise.all([FILES.vision, FILES.decoder, FILES.gate].map((f) => fetchBytes(new URL(f, baseUrl).href)));
     seg = new Segmenter(vision, decoder);
+    if (aVideo) seg.setGate(gate, new Float32Array(aVideo));
     return { model: seg.modelName, ms: performance.now() - t0 };
   },
   async loadText() {

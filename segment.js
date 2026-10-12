@@ -36,10 +36,27 @@ class WorkerClient {
   }
 }
 
-/** Unpacks a worker mask: [present, x, y, w, h, width, height, mask...]. */
+/** Unpacks a worker mask: [present, x, y, w, h, width, height, gate, mask...]. */
 function unpack(out) {
   const bbox = out[1] < 0 ? null : [out[1], out[2], out[3], out[4]];
-  return { present: out[0], bbox, width: out[5], height: out[6], mask: out.subarray(7) };
+  return { present: out[0], bbox, width: out[5], height: out[6], gate: out[7], mask: out.subarray(8) };
+}
+
+// vega1 decides whether the object is in a frame (the "gate"); one frame's
+// answer is noisy, so it is averaged over neighbouring frames first.
+// Mirrors vs1_core::seg::{smooth_gate, gated, GATE_THRESHOLD}.
+const GATE_THRESHOLD = 0.35;
+export function applyGate(frames) {
+  const n = frames.length;
+  const h = (Math.max(3, Math.round((n * 5) / 16)) | 1) >> 1;
+  const ps = frames.map((f) => f.gate);
+  return frames.map((f, i) => {
+    const win = ps.slice(Math.max(0, i - h), Math.min(n, i + h + 1));
+    const p = win.reduce((a, b) => a + b, 0) / win.length;
+    const scaled = p < GATE_THRESHOLD ? (0.5 * p) / GATE_THRESHOLD : 0.5 + (0.5 * (p - GATE_THRESHOLD)) / (1 - GATE_THRESHOLD);
+    if (p >= GATE_THRESHOLD) return { ...f, present: Math.min(f.present, scaled) };
+    return { ...f, present: Math.min(f.present, scaled), bbox: null, mask: new Float32Array(f.mask.length) };
+  });
 }
 
 export function isPhone() {
@@ -59,12 +76,16 @@ export class Vega1Seg {
     this.info = info;
   }
 
-  /** Loads the encoder and mask decoder in `workers` workers (up to 4, 2 on phones). */
-  static async load({ baseUrl = new URL('.', import.meta.url).href, workers } = {}) {
+  /**
+   * Loads the encoder and mask decoder in `workers` workers (up to 4, 2 on
+   * phones). `aVideo` (the text embedding of "a video") turns on vega1's
+   * presence gate.
+   */
+  static async load({ baseUrl = new URL('.', import.meta.url).href, workers, aVideo = null } = {}) {
     const cores = (navigator.hardwareConcurrency || 2) - 1;
     const n = Math.max(1, Math.min(isPhone() ? 2 : MAX_WORKERS, workers ?? cores));
     const clients = Array.from({ length: n }, () => new WorkerClient());
-    const infos = await Promise.all(clients.map((c) => c.call('init', { baseUrl })));
+    const infos = await Promise.all(clients.map((c) => c.call('init', { baseUrl, aVideo: aVideo && Array.from(aVideo) })));
     return new Vega1Seg(clients, { ...infos[0], workers: n });
   }
 
@@ -120,8 +141,9 @@ export class Vega1Seg {
   /** Masks of a query on every analyzed keyframe (decoder only). */
   async masks(query, { width = MASK_WIDTH } = {}) {
     const text = await this.embed(query);
-    return Promise.all(Array.from({ length: this.#frames }, (_, i) =>
+    const frames = await Promise.all(Array.from({ length: this.#frames }, (_, i) =>
       this.#owner.get(i).call('mask', { frame: i, text: Array.from(text), width }).then((r) => unpack(r.out))));
+    return applyGate(frames);
   }
 
   /**
@@ -144,7 +166,7 @@ export class Vega1Seg {
       }
       onProgress?.(++done, n);
     });
-    return { times, masks: out };
+    return { times, masks: out.map(applyGate) };
   }
 
   async #eachFrame(video, times, job, onFrame) {
