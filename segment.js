@@ -9,7 +9,7 @@
 
 const MAX_ANALYSIS_WIDTH = 640;
 const MAX_WORKERS = 4;
-export const MASK_WIDTH = 192;
+export const MASK_WIDTH = 256;
 
 class WorkerClient {
   #worker;
